@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: flashblade-provisioner
+  name: flashblade-provisioner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flashblade-provisioner
+  template:
+    metadata:
+      labels:
+        app: flashblade-provisioner
+    spec:
+      serviceAccountName: flashblade-provisioner
+      containers:
+        - image: my-container-registry.example/flashblade-provisioner:latest # TODO configure your image here
+          name: flashblade-provisioner
+          env:
+            - name: STORAGE_API_ADDRESS
+              value: https://flashblade-api.example/ # TODO configure the base URL to your FlashBlade API here
+            - name: STORAGE_API_TOKEN
+              value: T-123123 # TODO configure your storage api token here (or rather as a secret)
+            - name: STORAGE_NFS_HOST
+              value: flashblade-data.example # TODO configure your FlashBlade data hostname or IP here (not url)
+            - name: SKIP_TLS_VERIFICATION
+              value: "false" # optionally enable TLS verification
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flashblade-provisioner
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: flashblade-provisioner
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+      - persistentvolumes
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - create
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: flashblade-provisioner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: flashblade-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: flashblade-provisioner
+    namespace: flashblade-provisioner # TODO configure the namespace where the provisioner will be deployed
+
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: flashblade-provisioner
+provisioner: linkvt/flashblade-provisioner
+reclaimPolicy: Delete

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: sample
+  name: sample
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      containers:
+        - image: nginx:alpine
+          name: alpine
+          volumeMounts:
+            - mountPath: /flashblade
+              name: flashblade
+      volumes:
+        - name: flashblade
+          persistentVolumeClaim:
+            claimName: flashblade-sample-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: flashblade-sample-pvc
+spec:
+  storageClassName: "flashblade-provisioner"
+  resources:
+    requests:
+      storage: 8Gi
+  accessModes:
+    - ReadWriteMany
